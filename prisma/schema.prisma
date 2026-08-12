@@ -1,0 +1,24 @@
+datasource db {
+  provider = "sqlite"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Thread {
+  id        String    @id
+  title     String?
+  createdAt BigInt
+  updatedAt BigInt
+  messages  Message[]
+}
+
+model Message {
+  id        Int    @id @default(autoincrement())
+  threadId  String
+  role      String
+  content   String
+  createdAt BigInt
+  thread    Thread @relation(fields: [threadId], references: [id])
+}

@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Companion — Chat</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css">
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+<style>
+  :root {
+    --bg: #F4F1EA;
+    --panel: #EFEBE1;
+    --panel-light: #F9F7F1;
+    --border: #E4DFD3;
+    --border-dark: #D8D2C2;
+    --text: #2B2822;
+    --text-muted: #8A8272;
+    --text-faint: #B4AC9A;
+    --accent: #D97757;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    overflow: hidden;
+  }
+  .app { display: flex; height: 100vh; }
+
+  .sidebar {
+    width: 260px;
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    overflow-y: auto;
+  }
+  .brand { display: flex; align-items: center; gap: 8px; margin-bottom: 24px; padding: 0 4px; }
+  .brand-icon {
+    width: 28px; height: 28px; border-radius: 50%;
+    background: var(--accent); display: flex; align-items: center; justify-content: center;
+    color: var(--panel-light); font-size: 14px;
+  }
+  .brand-name { font-family: Georgia, serif; font-size: 18px; letter-spacing: -0.02em; }
+
+  .new-chat-btn {
+    display: flex; align-items: center; gap: 8px;
+    border: 1px solid var(--border-dark); background: var(--panel-light);
+    border-radius: 8px; padding: 8px 12px; font-size: 14px; cursor: pointer;
+    color: var(--text);
+  }
+  .new-chat-btn:hover { background: #fff; }
+
+  .field-section { margin-top: 18px; }
+  .field-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-faint); padding: 0 4px; margin-bottom: 6px; }
+  .field-input, .field-select, .field-textarea {
+    width: 100%; border: 1px solid var(--border-dark); background: var(--panel-light);
+    border-radius: 8px; padding: 8px 10px; font-size: 13px; color: var(--text);
+    outline: none; font-family: inherit;
+  }
+  .field-textarea { resize: vertical; min-height: 50px; }
+  .field-input:focus, .field-select:focus, .field-textarea:focus { border-color: var(--accent); }
+  .field-hint { font-size: 11px; color: var(--text-faint); margin-top: 6px; padding: 0 4px; line-height: 1.4; }
+
+  .recents-label { margin-top: 28px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-faint); padding: 0 4px; }
+  .recents-empty { margin-top: 8px; font-size: 14px; color: var(--text-faint); font-style: italic; padding: 0 4px; }
+  .recents-list { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }
+  .recent-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 10px; border-radius: 8px; cursor: pointer;
+    font-size: 13px; color: var(--text); background: transparent;
+    border: 1px solid transparent;
+  }
+  .recent-item:hover { background: var(--panel-light); border-color: var(--border); }
+  .recent-item.active { background: var(--panel-light); border-color: var(--border-dark); }
+  .recent-title { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .recent-del {
+    flex-shrink: 0; background: none; border: none; color: var(--text-faint);
+    cursor: pointer; font-size: 14px; padding: 0 4px; line-height: 1;
+  }
+  .recent-del:hover { color: var(--accent); }
+
+  main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+
+  .messages-scroll { flex: 1; overflow-y: auto; }
+  .messages-inner { max-width: 680px; margin: 0 auto; padding: 40px 16px; }
+
+  .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 60vh; text-align: center; gap: 10px; }
+  .empty-icon {
+    width: 48px; height: 48px; border-radius: 50%; background: var(--accent);
+    display: flex; align-items: center; justify-content: center; color: var(--panel-light); font-size: 22px;
+    margin-bottom: 4px;
+  }
+  .empty-title { font-family: Georgia, serif; font-size: 28px; margin: 0; }
+  .empty-sub { font-size: 14px; color: var(--text-muted); margin: 0; }
+
+  .msg-list { display: flex; flex-direction: column; gap: 24px; }
+  .msg-row { display: flex; gap: 12px; align-items: flex-start; }
+  .avatar {
+    flex-shrink: 0; width: 28px; height: 28px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center; color: var(--panel-light); font-size: 13px;
+  }
+  .avatar.user { background: var(--text); }
+  .avatar.assistant { background: var(--accent); }
+  
+  /* Markdown styling inside msg-content */
+  .msg-content { flex: 1; line-height: 1.6; font-size: 15px; padding-top: 2px; overflow-x: auto; }
+  .msg-content p { margin: 0 0 1em 0; }
+  .msg-content p:last-child { margin-bottom: 0; }
+  .msg-content pre { background: #f6f8fa; padding: 12px; border-radius: 8px; overflow-x: auto; border: 1px solid var(--border); }
+  .msg-content code { font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace; font-size: 0.9em; background: rgba(0,0,0,0.05); padding: 2px 4px; border-radius: 4px; }
+  .msg-content pre code { background: none; padding: 0; }
+  .msg-content.error { color: #b3542e; }
+
+  .input-bar { border-top: 1px solid var(--border); background: var(--bg); padding: 16px; }
+  .input-wrap { max-width: 680px; margin: 0 auto; }
+  .input-box {
+    display: flex; align-items: flex-end; gap: 8px;
+    border: 1px solid var(--border-dark); background: var(--panel-light);
+    border-radius: 16px; padding: 10px 12px 10px 16px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+  }
+  textarea#composer {
+    flex: 1; resize: none; border: none; background: transparent; outline: none;
+    font-size: 15px; font-family: inherit; color: var(--text); max-height: 160px; line-height: 1.5;
+  }
+  textarea#composer::placeholder { color: var(--text-faint); }
+  
+  .btn-group { display: flex; gap: 4px; }
+  .btn-circle {
+    flex-shrink: 0; width: 32px; height: 32px; border-radius: 50%; border: none;
+    display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 14px;
+  }
+  .send-btn { background: var(--accent); color: var(--panel-light); }
+  .send-btn:disabled { background: var(--border-dark); cursor: not-allowed; }
+  
+  .stop-btn { background: #b3542e; color: #fff; display: none; }
+  .stop-btn:hover { background: #8a3a1d; }
+
+  .disclaimer { text-align: center; font-size: 11px; color: var(--text-faint); margin-top: 8px; }
+
+  @media (max-width: 640px) {
+    .sidebar { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-icon">✦</div>
+      <div class="brand-name">Companion</div>
+    </div>
+    <button class="new-chat-btn" id="newChatBtn">+ New chat</button>
+
+    <div class="field-section">
+      <div class="field-label">System Prompt</div>
+      <textarea class="field-textarea" id="systemPromptInput" placeholder="You are a helpful assistant..." rows="2"></textarea>
+      <div class="field-hint">Instructions for the AI (applies to new messages).</div>
+    </div>
+
+    <div class="field-section">
+      <div class="field-label">Provider / Preset</div>
+      <select class="field-input" id="providerPresetSelect">
+        <option value="custom">— Custom API Base URL —</option>
+        <option value="http://localhost:11434/v1">Ollama (Local) — port 11434</option>
+        <option value="http://localhost:1234/v1">LM Studio (Local) — port 1234</option>
+        <option value="http://localhost:8000/v1">Local Server (vLLM/Jan) — port 8000</option>
+        <option value="https://api.openai.com/v1">OpenAI</option>
+        <option value="https://api.deepseek.com/v1">DeepSeek</option>
+        <option value="https://api.groq.com/openai/v1">Groq</option>
+        <option value="https://generativelanguage.googleapis.com/v1beta/openai">Google (Gemini)</option>
+        <option value="https://api.anthropic.com/v1">Anthropic (Claude)</option>
+        <option value="https://api.ollama.com">Ollama Cloud</option>
+      </select>
+    </div>
+
+    <div class="field-section">
+      <div class="field-label">API Base URL</div>
+      <input type="text" class="field-input" id="baseUrlInput" placeholder="https://api.openai.com/v1" />
+    </div>
+
+    <div class="field-section">
+      <div class="field-label">Model</div>
+      <div style="display:flex;gap:6px;">
+        <select class="field-input" id="modelSelect" style="flex:1;">
+          <option value="">— load models first —</option>
+        </select>
+        <button type="button" id="fetchModelsBtn" style="padding:0 10px;cursor:pointer;">Fetch</button>
+      </div>
+      <input type="text" class="field-input" id="modelInput" placeholder="or type a custom model name" style="margin-top:6px;" />
+    </div>
+
+    <div class="field-section">
+      <div class="field-label">API Key</div>
+      <input type="password" class="field-input" id="apiKeyInput" placeholder="sk-..." autocomplete="off" />
+    </div>
+
+    <div class="recents-label">
+      Recents
+      <button type="button" id="clearRecentsBtn" style="float:right;background:none;border:none;color:var(--text-faint);cursor:pointer;font-size:11px;">Clear</button>
+    </div>
+    <div class="recents-list" id="recentsList"></div>
+    <div class="recents-empty" id="recentsEmpty">Nothing yet</div>
+  </aside>
+
+  <main>
+    <div class="messages-scroll" id="scrollArea">
+      <div class="messages-inner">
+        <div class="empty-state" id="emptyState">
+          <div class="empty-icon">✦</div>
+          <h1 class="empty-title">What can I help with?</h1>
+          <p class="empty-sub">Enter your Base URL, API key, and model, then start typing.</p>
+        </div>
+        <div class="msg-list" id="msgList"></div>
+      </div>
+    </div>
+
+    <div class="input-bar">
+      <div class="input-wrap">
+        <div class="input-box">
+          <textarea id="composer" rows="1" placeholder="Message..."></textarea>
+          <div class="btn-group">
+            <button class="btn-circle stop-btn" id="stopBtn" title="Stop generating">■</button>
+            <button class="btn-circle send-btn" id="sendBtn" disabled>➤</button>
+          </div>
+        </div>
+        <div class="disclaimer">Responses are generated by an AI model and may be inaccurate.</div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+  // Setup marked.js with highlight.js
+  marked.setOptions({
+    highlight: function(code, lang) {
+      const language = hljs.getLanguage(lang) ? lang : 'plaintext';
+      return hljs.highlight(code, { language }).value;
+    }
+  });
+
+  const state = { messages: [] };
+  let currentAbortController = null;
+
+  const emptyState = document.getElementById('emptyState');
+  const msgList = document.getElementById('msgList');
+  const scrollArea = document.getElementById('scrollArea');
+  const composer = document.getElementById('composer');
+  const sendBtn = document.getElementById('sendBtn');
+  const stopBtn = document.getElementById('stopBtn');
+  const providerPresetSelect = document.getElementById('providerPresetSelect');
+  const baseUrlInput = document.getElementById('baseUrlInput');
+  const modelInput = document.getElementById('modelInput');
+  const modelSelect = document.getElementById('modelSelect');
+  const fetchModelsBtn = document.getElementById('fetchModelsBtn');
+  const apiKeyInput = document.getElementById('apiKeyInput');
+  const systemPromptInput = document.getElementById('systemPromptInput');
+  const newChatBtn = document.getElementById('newChatBtn');
+
+  const BACKEND_URL = (window.location.origin || 'http://localhost:3001').replace(/\/$/, '');
+  const ACTIVE_KEY  = 'chat_active';
+  
+  const store = { currentId: null, threads: {} };
+
+  async function loadStore() {
+    try {
+      const resp = await fetch(BACKEND_URL + '/api/chats');
+      if (resp.ok) {
+        const threadsList = await resp.json();
+        store.threads = {};
+        for (const t of threadsList) {
+          store.threads[t.id] = t;
+        }
+      }
+    } catch (e) { console.error("Could not load threads from DB"); }
+    store.currentId = localStorage.getItem(ACTIVE_KEY) || null;
+  }
+
+  function saveActiveThread() {
+    if (store.currentId) localStorage.setItem(ACTIVE_KEY, store.currentId);
+    else localStorage.removeItem(ACTIVE_KEY);
+  }
+
+  function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
+
+  function getCurrentThread() {
+    if (!store.currentId || !store.threads[store.currentId]) return null;
+    return store.threads[store.currentId];
+  }
+
+  function ensureThread() {
+    if (!getCurrentThread()) {
+      const id = uid();
+      store.threads[id] = { id, title: 'New chat', createdAt: Date.now(), updatedAt: Date.now() };
+      store.currentId = id;
+      saveActiveThread();
+    }
+    return getCurrentThread();
+  }
+
+  function renderRecents() {
+    const list = document.getElementById('recentsList');
+    const empty = document.getElementById('recentsEmpty');
+    list.innerHTML = '';
+    const items = Object.values(store.threads).sort((a, b) => b.updatedAt - a.updatedAt);
+    
+    if (items.length === 0) {
+      empty.style.display = 'block';
+      return;
+    }
+    empty.style.display = 'none';
+    for (const t of items) {
+      const row = document.createElement('div');
+      row.className = 'recent-item' + (t.id === store.currentId ? ' active' : '');
+      row.title = t.title;
+
+      const title = document.createElement('div');
+      title.className = 'recent-title';
+      title.textContent = t.title || 'Untitled';
+
+      const del = document.createElement('button');
+      del.className = 'recent-del';
+      del.type = 'button';
+      del.textContent = '×';
+      del.title = 'Delete';
+      del.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        await fetch(BACKEND_URL + '/api/chats/' + t.id, { method: 'DELETE' });
+        delete store.threads[t.id];
+        if (store.currentId === t.id) {
+          store.currentId = null;
+          state.messages = [];
+          msgList.innerHTML = '';
+          emptyState.style.display = 'flex';
+          composer.value = '';
+          autoResize();
+          sendBtn.disabled = true;
+          saveActiveThread();
+        }
+        renderRecents();
+      });
+
+      row.appendChild(title);
+      row.appendChild(del);
+      row.addEventListener('click', () => loadThread(t.id));
+      list.appendChild(row);
+    }
+  }
+
+  async function loadThread(id) {
+    const t = store.threads[id];
+    if (!t) return;
+    store.currentId = id;
+    saveActiveThread();
+    
+    // Fetch messages from DB
+    try {
+      const resp = await fetch(BACKEND_URL + '/api/chats/' + id);
+      if (resp.ok) {
+        state.messages = await resp.json();
+      } else {
+        state.messages = [];
+      }
+    } catch(e) {
+      state.messages = [];
+    }
+
+    msgList.innerHTML = '';
+    emptyState.style.display = state.messages.length ? 'none' : 'flex';
+    for (const m of state.messages) renderMessage(m.role, m.content);
+    
+    composer.value = '';
+    autoResize();
+    sendBtn.disabled = true;
+    renderRecents();
+  }
+
+  function autoTitleFromMessage(text) {
+    const t = (text || '').replace(/\s+/g, ' ').trim();
+    return t.length > 40 ? t.slice(0, 40) + '…' : (t || 'New chat');
+  }
+
+  function syncProviderPreset() {
+    if (!providerPresetSelect) return;
+    const currentUrl = (baseUrlInput.value || '').trim();
+    const match = Array.from(providerPresetSelect.options).find(opt => opt.value === currentUrl);
+    providerPresetSelect.value = match ? currentUrl : 'custom';
+  }
+
+  baseUrlInput.value = localStorage.getItem('api_base_url') || 'https://api.openai.com/v1';
+  syncProviderPreset();
+  modelInput.value = localStorage.getItem('api_model') || 'gpt-4o';
+  systemPromptInput.value = localStorage.getItem('system_prompt') || '';
+  const savedKey = localStorage.getItem('api_key') || '';
+  apiKeyInput.value = savedKey ? '••••••••' + savedKey.slice(-4) : '';
+
+  function syncModelSelect() {
+    const saved = (modelInput.value || '').trim();
+    if (!saved) return;
+    const opt = Array.from(modelSelect.options).find(o => o.value === saved);
+    if (opt) {
+      modelSelect.value = saved;
+    } else {
+      const custom = document.createElement('option');
+      custom.value = saved;
+      custom.textContent = saved + ' (custom)';
+      modelSelect.insertBefore(custom, modelSelect.firstChild);
+      modelSelect.value = saved;
+    }
+  }
+  syncModelSelect();
+
+  // Initialization
+  (async function init() {
+    await loadStore();
+    const initial = getCurrentThread();
+    if (initial) {
+      await loadThread(initial.id);
+    } else {
+      emptyState.style.display = 'flex';
+      renderRecents();
+    }
+  })();
+
+  baseUrlInput.addEventListener('input', () => {
+    localStorage.setItem('api_base_url', baseUrlInput.value.trim());
+    syncProviderPreset();
+  });
+  if (providerPresetSelect) {
+    providerPresetSelect.addEventListener('change', () => {
+      if (providerPresetSelect.value !== 'custom') {
+        baseUrlInput.value = providerPresetSelect.value;
+        localStorage.setItem('api_base_url', baseUrlInput.value.trim());
+      }
+    });
+  }
+  modelInput.addEventListener('input', () => localStorage.setItem('api_model', modelInput.value.trim()));
+  systemPromptInput.addEventListener('input', () => localStorage.setItem('system_prompt', systemPromptInput.value.trim()));
+  
+  apiKeyInput.addEventListener('input', () => {
+    const raw = apiKeyInput.value.trim();
+    if (savedKey && raw === '••••••••' + savedKey.slice(-4)) return;
+    localStorage.setItem('api_key', raw);
+  });
+
+  modelSelect.addEventListener('change', () => {
+    const v = modelSelect.value;
+    if (v) {
+      modelInput.value = v;
+      localStorage.setItem('api_model', v);
+    }
+  });
+
+  function isLocalUrl(url) {
+    try {
+      const u = new URL(url);
+      const h = u.hostname.toLowerCase();
+      return h === 'localhost' || h === '127.0.0.1' || h === '::1' || h === '0.0.0.0';
+    } catch (e) { return false; }
+  }
+
+  async function fetchModels() {
+    const baseUrl = baseUrlInput.value.trim();
+    const apiKey = (localStorage.getItem('api_key') || '').trim();
+    const isLocal = isLocalUrl(baseUrl);
+    if (!baseUrl) { alert('Enter an API Base URL first.'); return; }
+    if (!isLocal && (!apiKey || apiKey.startsWith('••'))) {
+      alert('Enter your API key first.');
+      return;
+    }
+
+    fetchModelsBtn.disabled = true;
+    try {
+      const resp = await fetch(BACKEND_URL + '/api/models', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ baseUrl, apiKey })
+      });
+      const data = await resp.json();
+      if (!resp.ok) return;
+      const models = Array.isArray(data.models) ? data.models : [];
+
+      const currentSaved = modelInput.value.trim();
+      modelSelect.innerHTML = '';
+      const placeholder = document.createElement('option');
+      placeholder.value = '';
+      placeholder.textContent = models.length ? '— pick a model —' : 'No models returned';
+      modelSelect.appendChild(placeholder);
+
+      for (const m of models) {
+        const opt = document.createElement('option');
+        opt.value = m;
+        opt.textContent = m;
+        modelSelect.appendChild(opt);
+      }
+      const customOpt = document.createElement('option');
+      customOpt.value = '__custom__';
+      customOpt.textContent = 'Custom…';
+      modelSelect.appendChild(customOpt);
+
+      if (currentSaved && models.includes(currentSaved)) modelSelect.value = currentSaved;
+    } catch (err) {
+      console.error(err);
+    } finally {
+      fetchModelsBtn.disabled = false;
+    }
+  }
+  fetchModelsBtn.addEventListener('click', fetchModels);
+
+  document.getElementById('clearRecentsBtn').addEventListener('click', async () => {
+    if (!confirm('Delete all conversation history?')) return;
+    await fetch(BACKEND_URL + '/api/chats', { method: 'DELETE' });
+    store.threads = {};
+    store.currentId = null;
+    state.messages = [];
+    msgList.innerHTML = '';
+    emptyState.style.display = 'flex';
+    composer.value = '';
+    autoResize();
+    sendBtn.disabled = true;
+    saveActiveThread();
+    renderRecents();
+  });
+
+  function autoResize() {
+    composer.style.height = 'auto';
+    composer.style.height = Math.min(composer.scrollHeight, 160) + 'px';
+  }
+  composer.addEventListener('input', () => {
+    autoResize();
+    sendBtn.disabled = !composer.value.trim();
+  });
+  composer.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  });
+
+  newChatBtn.addEventListener('click', () => {
+    state.messages = [];
+    msgList.innerHTML = '';
+    emptyState.style.display = 'flex';
+    composer.value = '';
+    autoResize();
+    sendBtn.disabled = true;
+    store.currentId = null;
+    saveActiveThread();
+    renderRecents();
+  });
+
+  function renderMessage(role, content, isError) {
+    const row = document.createElement('div');
+    row.className = 'msg-row';
+    const avatar = document.createElement('div');
+    avatar.className = 'avatar ' + (role === 'user' ? 'user' : 'assistant');
+    avatar.textContent = role === 'user' ? '\u25c6' : '\u2726';
+    const content_el = document.createElement('div');
+    content_el.className = 'msg-content' + (isError ? ' error' : '');
+    
+    if (role === 'user' || isError) {
+      content_el.textContent = content; // raw text for user and errors
+      content_el.style.whiteSpace = 'pre-wrap';
+    } else {
+      content_el.innerHTML = marked.parse(content || '');
+    }
+    
+    row.appendChild(avatar);
+    row.appendChild(content_el);
+    msgList.appendChild(row);
+    scrollArea.scrollTop = scrollArea.scrollHeight;
+    return content_el;
+  }
+
+  // Generate payload for sending to backend
+  function buildPayloadMessages() {
+    let payload = [];
+    const sysPrompt = systemPromptInput.value.trim();
+    if (sysPrompt) {
+      payload.push({ role: 'system', content: sysPrompt });
+    }
+    // Unlimited messages: Send the entire conversation history
+    payload = payload.concat(state.messages);
+    return payload;
+  }
+
+  stopBtn.addEventListener('click', () => {
+    if (currentAbortController) {
+      currentAbortController.abort();
+      currentAbortController = null;
+    }
+  });
+
+  async function sendMessage() {
+    const text = composer.value.trim();
+    if (!text) return;
+
+    const baseUrl = baseUrlInput.value.trim();
+    if (!baseUrl) { alert('Please enter an API Base URL.'); return; }
+    
+    const isLocal = isLocalUrl(baseUrl);
+    const apiKey = (localStorage.getItem('api_key') || apiKeyInput.value).trim();
+    if (!isLocal && (!apiKey || apiKey.startsWith('••'))) {
+      alert('Please enter your API key.');
+      return;
+    }
+    
+    const model = modelSelect.value === '__custom__' ? modelInput.value.trim() : (modelSelect.value || modelInput.value.trim());
+    if (!model) { alert('Please pick or type a model name.'); return; }
+
+    emptyState.style.display = 'none';
+    const thread = ensureThread();
+    
+    // UI update
+    state.messages.push({ role: 'user', content: text });
+    if (thread.title === 'New chat') thread.title = autoTitleFromMessage(text);
+    thread.updatedAt = Date.now();
+    renderRecents();
+    renderMessage('user', text);
+
+    composer.value = '';
+    autoResize();
+    sendBtn.disabled = true;
+    sendBtn.style.display = 'none';
+    stopBtn.style.display = 'flex';
+
+    // Build the payload
+    const payloadMessages = buildPayloadMessages();
+    
+    // Setup streaming placeholder
+    const assistantEl = renderMessage('assistant', '');
+
+    currentAbortController = new AbortController();
+
+    try {
+      const response = await fetch(BACKEND_URL + '/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        signal: currentAbortController.signal,
+        body: JSON.stringify({
+          baseUrl,
+          model,
+          apiKey,
+          threadId: thread.id,
+          title: thread.title,
+          messages: payloadMessages
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(()=>({}));
+        assistantEl.className = 'msg-content error';
+        assistantEl.textContent = 'Error: ' + (errorData.error || 'request failed') + '.';
+        state.messages.push({ role: 'assistant', content: 'Error: ' + (errorData.error || 'request failed') });
+        return;
+      }
+
+      // Streaming parser
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder('utf-8');
+      let fullReply = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split('\n').filter(l => l.trim() !== '');
+        
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const dataStr = line.slice(6);
+            if (dataStr === '[DONE]') break;
+            try {
+              const parsed = JSON.parse(dataStr);
+              if (parsed.error) {
+                 fullReply += "\n\n**Error**: " + parsed.error;
+              } else if (parsed.text) {
+                 fullReply += parsed.text;
+              }
+            } catch(e) {}
+          }
+        }
+        assistantEl.innerHTML = marked.parse(fullReply);
+        scrollArea.scrollTop = scrollArea.scrollHeight;
+      }
+      
+      state.messages.push({ role: 'assistant', content: fullReply });
+    } catch (err) {
+      if (err.name === 'AbortError') {
+        assistantEl.innerHTML += marked.parse("\n\n*(Generation stopped by user)*");
+      } else {
+        assistantEl.className = 'msg-content error';
+        assistantEl.textContent = 'Network error: could not reach the backend.';
+      }
+    } finally {
+      currentAbortController = null;
+      sendBtn.style.display = 'flex';
+      stopBtn.style.display = 'none';
+      sendBtn.disabled = !composer.value.trim();
+    }
+  }
+
+</script>
+</body>
+</html>
